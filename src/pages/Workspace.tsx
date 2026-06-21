@@ -148,6 +148,7 @@ export function Workspace() {
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [markdown, setMarkdown] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [mobileViewMode, setMobileViewMode] = useState<'edit' | 'preview'>('edit');
 
   // Theme State
   const [themeIdx, setThemeIdx] = useState<number>(() => {
@@ -297,6 +298,11 @@ export function Workspace() {
     if (targetFile) {
       setActiveFileId(targetFile.id);
       setMarkdown(targetFile.content || '');
+    }
+
+    // Auto-close sidebar on mobile
+    if (window.innerWidth < 768) {
+      setIsSidebarOpen(false);
     }
   };
 
@@ -569,7 +575,7 @@ export function Workspace() {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background animate-in fade-in duration-500">
       {/* 1. STICKY TOP HEADER */}
-      <nav className="h-14 flex justify-between items-center px-6 border-b border-neutral-800 bg-surface shrink-0 z-10">
+      <nav className="h-auto md:h-14 py-2 md:py-0 flex flex-wrap justify-between items-center px-4 md:px-6 border-b border-neutral-800 bg-surface shrink-0 z-10 gap-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -579,42 +585,42 @@ export function Workspace() {
               {isSidebarOpen ? 'keyboard_double_arrow_left' : 'keyboard_double_arrow_right'}
             </span>
           </button>
-          <svg className="h-7 w-7 ml-2" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="h-6 w-6 md:h-7 md:w-7 ml-1 md:ml-2" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="200" height="200" rx="24" fill="#131313" />
             <path d="M60 70L85 95L60 120" stroke="var(--color-primary-fixed)" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
             <rect x="95" y="110" width="45" height="12" rx="2" fill="var(--color-primary-fixed)" />
           </svg>
-          <span className="text-headline-md font-headline-md font-bold text-on-surface tracking-tighter">
+          <span className="hidden md:inline text-headline-md font-headline-md font-bold text-on-surface tracking-tighter">
             <span style={{ color: 'var(--color-primary-fixed)' }}>S</span>tix
           </span>
-          <div className="h-6 w-[1px] bg-neutral-800 mx-3"></div>
+          <div className="h-6 w-[1px] bg-neutral-800 mx-2 md:mx-3"></div>
           <input
             type="text"
             value={Array.isArray(files) ? files.find(f => f.id === activeFileId)?.title || '' : ''}
             onChange={handleTitleChange}
-            className="bg-transparent border-none outline-none font-label-sm text-on-surface-variant uppercase tracking-widest text-[10px] w-64 focus:ring-0 focus:text-on-surface transition-colors"
-            placeholder="UNTITLED DOCUMENT"
+            className="bg-transparent border-none outline-none font-label-sm text-on-surface-variant uppercase tracking-widest text-[10px] w-32 md:w-64 focus:ring-0 focus:text-on-surface transition-colors"
+            placeholder="UNTITLED"
           />
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:gap-6 overflow-x-auto scrollbar-hide pb-1 md:pb-0">
+          <div className="flex items-center gap-1 md:gap-2">
             {/* Font Switcher */}
             <button
               onClick={() => setFontIdx((prev) => (prev + 1) % FONTS.length)}
-              className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:text-on-surface px-4 py-1.5 transition-colors"
+              className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:text-on-surface px-2 md:px-4 py-1.5 transition-colors whitespace-nowrap"
             >
-              FONT: {FONTS[fontIdx].name}
+              <span className="hidden md:inline">FONT: </span>{FONTS[fontIdx].name}
             </button>
 
             {/* Theme Switcher */}
             <div className="relative">
               <button
                 onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-                className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:text-on-surface px-4 py-1.5 transition-colors flex items-center gap-2"
+                className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:text-on-surface px-2 md:px-4 py-1.5 transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-primary-fixed)' }}></div>
-                THEME
+                <span className="hidden md:inline">THEME</span>
               </button>
 
               {isThemeMenuOpen && (
@@ -640,30 +646,38 @@ export function Workspace() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <button
               onClick={handleExportMarkdown}
-              className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:border-primary-fixed hover:text-primary-fixed px-4 py-1.5 transition-colors"
+              className="font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:border-primary-fixed hover:text-primary-fixed px-2 md:px-4 py-1.5 transition-colors whitespace-nowrap"
             >
-              EXPORT MD
+              <span className="hidden md:inline">EXPORT </span>MD
             </button>
             <button
               onClick={handleExportHTML}
-              className="font-label-sm text-[10px] uppercase tracking-widest px-4 py-1.5 font-bold hover:brightness-110 active:scale-95 transition-all"
+              className="font-label-sm text-[10px] uppercase tracking-widest px-2 md:px-4 py-1.5 font-bold hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
               style={{ backgroundColor: 'var(--color-primary-fixed)', color: 'var(--color-on-primary-fixed)' }}
             >
-              EXPORT HTML
+              <span className="hidden md:inline">EXPORT </span>HTML
             </button>
           </div>
         </div>
       </nav>
 
       {/* 2. MAIN BODY (Split View) */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+
+        {/* Sidebar Overlay for Mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="md:hidden fixed inset-0 bg-black/60 z-30 transition-opacity"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
         {/* Sidebar */}
         <div
-          className={`bg-neutral-950 border-r border-neutral-800 flex flex-col transition-all duration-200 shrink-0 overflow-hidden ${isSidebarOpen ? 'w-64' : 'w-0 border-r-0'}`}
+          className={`bg-neutral-950 border-r border-neutral-800 flex flex-col transition-all duration-300 shrink-0 overflow-hidden absolute md:relative z-40 h-full ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-0 md:translate-x-0 border-r-0'}`}
         >
           <div className="p-4 border-b border-neutral-800">
             <button
@@ -722,7 +736,7 @@ export function Workspace() {
 
         {/* Editor Pane */}
         <section
-          className="flex-1 flex flex-col bg-surface-container-lowest overflow-hidden relative"
+          className={`flex-1 flex-col bg-surface-container-lowest overflow-hidden relative ${mobileViewMode === 'edit' ? 'flex' : 'hidden md:flex'}`}
           onDrop={handleDrop}
           onDragOver={preventDefaults}
           onDragEnter={preventDefaults}
@@ -751,10 +765,10 @@ export function Workspace() {
         </section>
 
         {/* Vertical Separator */}
-        <div className="w-px bg-neutral-800 shrink-0 z-10"></div>
+        <div className="hidden md:block w-px bg-neutral-800 shrink-0 z-10"></div>
 
         {/* Preview Pane */}
-        <section className="flex-1 flex flex-col bg-surface overflow-hidden relative">
+        <section className={`flex-1 flex-col bg-surface overflow-hidden relative ${mobileViewMode === 'preview' ? 'flex' : 'hidden md:flex'}`}>
           <div
             ref={previewRef}
             className="flex-grow overflow-y-auto p-10 pb-[50vh] font-preview-body text-preview-body max-w-none"
@@ -823,17 +837,34 @@ export function Workspace() {
       </div>
 
       {/* 4. SYSTEM METRICS FOOTER */}
-      <footer className="h-8 bg-neutral-950 border-t border-neutral-800 px-4 flex items-center justify-between text-[11px] text-neutral-500 font-mono shrink-0">
-        <div className="flex items-center gap-2">
+      <footer className="h-10 md:h-8 bg-neutral-950 border-t border-neutral-800 px-4 flex items-center justify-between text-[11px] text-neutral-500 font-mono shrink-0">
+        
+        {/* Mobile View Toggle */}
+        <div className="md:hidden flex items-center bg-surface-container rounded-sm border border-neutral-800 overflow-hidden">
+          <button 
+            onClick={() => setMobileViewMode('edit')}
+            className={`px-3 py-1 transition-colors ${mobileViewMode === 'edit' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
+          >
+            EDIT
+          </button>
+          <button 
+            onClick={() => setMobileViewMode('preview')}
+            className={`px-3 py-1 transition-colors ${mobileViewMode === 'preview' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
+          >
+            PREVIEW
+          </button>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-primary-fixed)' }}></div>
           <span>SYS_STATUS: READY // LOCAL_SYNC: ACTIVE</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>{telemetry.wordCount.toLocaleString()} WORDS</span>
-          <span className="text-neutral-700">|</span>
+        <div className="flex items-center gap-2 md:gap-4 ml-auto">
+          <span className="hidden sm:inline">{telemetry.wordCount.toLocaleString()} WORDS</span>
+          <span className="hidden sm:inline text-neutral-700">|</span>
           <span>{telemetry.charCount.toLocaleString()} CHARS</span>
           <span className="text-neutral-700">|</span>
-          <span style={{ color: 'var(--color-primary-fixed-dim)' }}>~{telemetry.readTime} MIN READ</span>
+          <span style={{ color: 'var(--color-primary-fixed-dim)' }}>~{telemetry.readTime} MIN</span>
         </div>
       </footer>
     </div>
