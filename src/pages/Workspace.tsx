@@ -603,7 +603,7 @@ export function Workspace() {
           />
         </div>
 
-        <div className="flex items-center gap-2 md:gap-6 overflow-x-auto scrollbar-hide pb-1 md:pb-0">
+        <div className="flex items-center flex-wrap gap-2 md:gap-6">
           
           {/* Mobile View Toggle */}
           <div className="md:hidden flex items-center bg-surface-container rounded-sm border border-neutral-800 overflow-hidden shrink-0">
