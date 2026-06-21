@@ -139,6 +139,14 @@
   font-weight: bold;
 }
 
+/* Fix for react-simple-code-editor line wrapping desync on mobile */
+.markdown-editor textarea,
+.markdown-editor pre {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
 /* On-load Animations */
 @keyframes boot-sequence {
   0% { 
