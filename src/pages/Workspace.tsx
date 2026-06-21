@@ -604,6 +604,23 @@ export function Workspace() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-6 overflow-x-auto scrollbar-hide pb-1 md:pb-0">
+          
+          {/* Mobile View Toggle */}
+          <div className="md:hidden flex items-center bg-surface-container rounded-sm border border-neutral-800 overflow-hidden shrink-0">
+            <button 
+              onClick={() => setMobileViewMode('edit')}
+              className={`font-label-sm text-[10px] uppercase tracking-widest px-3 py-1.5 transition-colors ${mobileViewMode === 'edit' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
+            >
+              EDIT
+            </button>
+            <button 
+              onClick={() => setMobileViewMode('preview')}
+              className={`font-label-sm text-[10px] uppercase tracking-widest px-3 py-1.5 transition-colors ${mobileViewMode === 'preview' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
+            >
+              PREVIEW
+            </button>
+          </div>
+
           <div className="flex items-center gap-1 md:gap-2">
             {/* Font Switcher */}
             <button
@@ -837,24 +854,7 @@ export function Workspace() {
       </div>
 
       {/* 4. SYSTEM METRICS FOOTER */}
-      <footer className="h-10 md:h-8 bg-neutral-950 border-t border-neutral-800 px-4 flex items-center justify-between text-[11px] text-neutral-500 font-mono shrink-0">
-        
-        {/* Mobile View Toggle */}
-        <div className="md:hidden flex items-center bg-surface-container rounded-sm border border-neutral-800 overflow-hidden">
-          <button 
-            onClick={() => setMobileViewMode('edit')}
-            className={`px-3 py-1 transition-colors ${mobileViewMode === 'edit' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
-          >
-            EDIT
-          </button>
-          <button 
-            onClick={() => setMobileViewMode('preview')}
-            className={`px-3 py-1 transition-colors ${mobileViewMode === 'preview' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
-          >
-            PREVIEW
-          </button>
-        </div>
-
+      <footer className="h-8 bg-neutral-950 border-t border-neutral-800 px-4 flex items-center justify-between text-[11px] text-neutral-500 font-mono shrink-0">
         <div className="hidden md:flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-primary-fixed)' }}></div>
           <span>SYS_STATUS: READY // LOCAL_SYNC: ACTIVE</span>
