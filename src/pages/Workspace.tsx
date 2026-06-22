@@ -189,6 +189,8 @@ export function Workspace() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [mobileViewMode, setMobileViewMode] = useState<'edit' | 'preview'>('edit');
   const [isVersionControlOpen, setIsVersionControlOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportSelection, setExportSelection] = useState<Set<string>>(new Set());
 
   const [workspaceHistory, setWorkspaceHistory] = useState<WorkspaceHistory>({
     commits: [],
@@ -456,8 +458,18 @@ export function Workspace() {
       const storedFiles = await localforage.getItem<StixFile[]>(STORAGE_KEY);
       if (!storedFiles || !Array.isArray(storedFiles) || storedFiles.length === 0) {
         alert("Vault is empty. Nothing to backup.");
+        setIsExportModalOpen(false);
         return;
       }
+
+      const filesToExport = storedFiles.filter(f => exportSelection.has(f.id));
+      
+      if (filesToExport.length === 0) {
+        alert("No files selected for export.");
+        return;
+      }
+
+      const isPartialExport = filesToExport.length < storedFiles.length;
 
       // Extract binary assets and encode to Base64
       const assets: Record<string, string> = {};
@@ -476,13 +488,16 @@ export function Workspace() {
         }
       }
 
-      const archive = {
+      const archive: any = {
         version: '1.0',
         timestamp: new Date().toISOString(),
-        files: storedFiles,
-        workspaceHistory: await localforage.getItem<WorkspaceHistory>(WS_HISTORY_KEY),
+        files: filesToExport,
         assets: assets
       };
+
+      if (!isPartialExport) {
+        archive.workspaceHistory = await localforage.getItem<WorkspaceHistory>(WS_HISTORY_KEY);
+      }
 
       const json = JSON.stringify(archive);
 
@@ -509,6 +524,7 @@ export function Workspace() {
       a.download = `stix_workspace_${new Date().toISOString().split('T')[0]}.stix`;
       a.click();
       URL.revokeObjectURL(url);
+      setIsExportModalOpen(false);
     } catch (e) {
       console.error('Vault export failed', e);
       alert('Failed to export compressed vault.');
@@ -893,7 +909,10 @@ export function Workspace() {
           {/* Vault Backup/Restore */}
           <div className="p-4 border-t border-neutral-800 flex gap-2 shrink-0 bg-neutral-950">
             <button
-              onClick={exportCompressedVault}
+              onClick={() => {
+                setExportSelection(new Set((Array.isArray(files) ? files : []).map(f => f.id)));
+                setIsExportModalOpen(true);
+              }}
               className="flex-1 font-label-sm text-[10px] uppercase tracking-widest text-secondary border border-neutral-800 hover:border-primary-fixed hover:text-primary-fixed py-2 transition-colors rounded-sm flex items-center justify-center gap-1"
             >
               <span className="material-symbols-outlined text-[14px]">download</span>
@@ -1094,6 +1113,91 @@ export function Workspace() {
           </div>
           {/* Invisible backdrop to close when clicking outside */}
           <div className="fixed inset-0 -z-10" onClick={() => setIsSearchOpen(false)} />
+        </div>
+      )}
+
+      {/* EXPORT VAULT MODAL */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-surface-container border border-neutral-800 rounded-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-surface-container-highest">
+              <h2 className="font-headline-md text-on-surface uppercase tracking-widest text-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-primary-fixed">encrypted</span>
+                Secure Vault Backup
+              </h2>
+              <button onClick={() => setIsExportModalOpen(false)} className="text-neutral-500 hover:text-on-surface p-1 rounded-sm transition-colors">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="font-label-sm text-[11px] text-neutral-400 uppercase tracking-widest mb-4">
+                Select files to include in this backup.
+              </p>
+              
+              <div className="flex gap-2 mb-4">
+                <button 
+                  onClick={() => setExportSelection(new Set(files.map(f => f.id)))}
+                  className="px-3 py-1 font-label-sm text-[9px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-on-surface rounded-sm transition-colors"
+                >
+                  Select All
+                </button>
+                <button 
+                  onClick={() => setExportSelection(new Set())}
+                  className="px-3 py-1 font-label-sm text-[9px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-on-surface rounded-sm transition-colors"
+                >
+                  Deselect All
+                </button>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto border border-neutral-800 rounded-sm bg-surface-container-lowest p-2 flex flex-col gap-1">
+                {files.map(file => (
+                  <label key={file.id} className="flex items-center gap-3 p-2 hover:bg-surface-container rounded-sm cursor-pointer transition-colors group">
+                    <div className="relative flex items-center">
+                      <input 
+                        type="checkbox" 
+                        checked={exportSelection.has(file.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(exportSelection);
+                          if (e.target.checked) newSet.add(file.id);
+                          else newSet.delete(file.id);
+                          setExportSelection(newSet);
+                        }}
+                        className="peer appearance-none w-4 h-4 border border-neutral-600 rounded-sm checked:bg-primary-fixed checked:border-primary-fixed transition-colors cursor-pointer"
+                      />
+                      <span className="material-symbols-outlined absolute text-[12px] text-on-primary-fixed pointer-events-none opacity-0 peer-checked:opacity-100 left-[2px] top-[2px]">
+                        check
+                      </span>
+                    </div>
+                    <span className={`font-code-md text-sm truncate ${exportSelection.has(file.id) ? 'text-on-surface' : 'text-neutral-500'}`}>
+                      {file.title || 'Untitled Document'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              {exportSelection.size < files.length && (
+                <div className="mt-4 p-3 bg-red-400/10 border border-red-400/20 rounded-sm flex items-start gap-3">
+                  <span className="material-symbols-outlined text-[16px] text-red-400 shrink-0 mt-0.5">warning</span>
+                  <p className="font-mono text-[10px] text-red-400/90 leading-relaxed">
+                    Partial export detected. The global Workspace Version History will be omitted from this backup to ensure privacy of excluded files.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-neutral-800 bg-surface-container-lowest">
+              <button
+                onClick={exportCompressedVault}
+                disabled={exportSelection.size === 0}
+                className="w-full py-3 rounded-sm font-label-sm text-[11px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 disabled:pointer-events-none hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--color-primary-fixed)', color: 'var(--color-on-primary-fixed)' }}
+              >
+                <span className="material-symbols-outlined text-[16px]">lock</span>
+                Encrypt & Download Vault
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
