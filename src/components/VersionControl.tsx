@@ -1,77 +1,136 @@
 import { useState } from 'react';
 import * as diff from 'diff';
-import type { StixFile, StixCommit, StixBranch } from '../pages/Workspace';
+import type { StixFile, StixCommit, StixBranch, WorkspaceHistory, WorkspaceCommit, WorkspaceBranch } from '../pages/Workspace';
 
 interface VersionControlProps {
   activeFile: StixFile;
   currentMarkdown: string;
   onUpdateFile: (updatedFile: StixFile) => void;
   onUpdateMarkdown: (newMarkdown: string) => void;
+  
+  files: StixFile[];
+  workspaceHistory: WorkspaceHistory;
+  onUpdateWorkspace: (updatedFiles: StixFile[], updatedHistory: WorkspaceHistory) => void;
+  
   onClose: () => void;
 }
 
-export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUpdateMarkdown, onClose }: VersionControlProps) {
+export function VersionControl({ 
+  activeFile, 
+  currentMarkdown, 
+  onUpdateFile, 
+  onUpdateMarkdown, 
+  files,
+  workspaceHistory,
+  onUpdateWorkspace,
+  onClose 
+}: VersionControlProps) {
   const [activeTab, setActiveTab] = useState<'COMMIT' | 'HISTORY' | 'BRANCHES'>('COMMIT');
+  const [scope, setScope] = useState<'FILE' | 'WORKSPACE'>('FILE');
   
-  // Normalization
-  const branches = activeFile.branches || [{ name: 'main', headCommitId: null }];
-  const activeBranchName = activeFile.activeBranch || 'main';
-  const commits = activeFile.commits || [];
-  const currentBranch = branches.find(b => b.name === activeBranchName) || branches[0];
-  
-  // Commit State
-  const [commitMessage, setCommitMessage] = useState('');
-  
-  // Branch State
-  const [newBranchName, setNewBranchName] = useState('');
+  // --- FILE LEVEL NORMALIZATION ---
+  const fileBranches = activeFile.branches || [{ name: 'main', headCommitId: null }];
+  const fileActiveBranchName = activeFile.activeBranch || 'main';
+  const fileCommits = activeFile.commits || [];
+  const fileCurrentBranch = fileBranches.find(b => b.name === fileActiveBranchName) || fileBranches[0];
 
-  // History State
+  // --- WORKSPACE LEVEL NORMALIZATION ---
+  const wsBranches = workspaceHistory.branches || [{ name: 'main', headCommitId: null }];
+  const wsActiveBranchName = workspaceHistory.activeBranch || 'main';
+  const wsCommits = workspaceHistory.commits || [];
+  const wsCurrentBranch = wsBranches.find(b => b.name === wsActiveBranchName) || wsBranches[0];
+  
+  // Shared State
+  const [commitMessage, setCommitMessage] = useState('');
+  const [newBranchName, setNewBranchName] = useState('');
   const [viewingDiffFor, setViewingDiffFor] = useState<string | null>(null);
+
+  // Computed Active State
+  const activeBranchName = scope === 'FILE' ? fileActiveBranchName : wsActiveBranchName;
+  const activeBranches = scope === 'FILE' ? fileBranches : wsBranches;
+  const activeCommits = scope === 'FILE' ? fileCommits : wsCommits;
+  const currentBranch = scope === 'FILE' ? fileCurrentBranch : wsCurrentBranch;
 
   // --- ACTIONS ---
 
   const handleCommit = () => {
     if (!commitMessage.trim()) return;
     
-    const newCommit: StixCommit = {
-      id: `commit_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      message: commitMessage.trim(),
-      content: currentMarkdown,
-      parentId: currentBranch.headCommitId
-    };
+    if (scope === 'FILE') {
+      const newCommit: StixCommit = {
+        id: `commit_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        message: commitMessage.trim(),
+        content: currentMarkdown,
+        parentId: fileCurrentBranch.headCommitId
+      };
 
-    const updatedCommits = [newCommit, ...commits];
-    const updatedBranches = branches.map(b => 
-      b.name === activeBranchName ? { ...b, headCommitId: newCommit.id } : b
-    );
+      const updatedCommits = [newCommit, ...fileCommits];
+      const updatedBranches = fileBranches.map(b => 
+        b.name === fileActiveBranchName ? { ...b, headCommitId: newCommit.id } : b
+      );
 
-    onUpdateFile({
-      ...activeFile,
-      content: currentMarkdown,
-      updatedAt: new Date().toISOString(),
-      commits: updatedCommits,
-      branches: updatedBranches,
-      activeBranch: activeBranchName
-    });
+      onUpdateFile({
+        ...activeFile,
+        content: currentMarkdown,
+        updatedAt: new Date().toISOString(),
+        commits: updatedCommits,
+        branches: updatedBranches,
+        activeBranch: fileActiveBranchName
+      });
+    } else {
+      // Workspace Scope
+      // Capture current working tree, ensuring the active file has the latest markdown
+      const currentWorkspaceSnapshot = files.map(f => f.id === activeFile.id ? { ...f, content: currentMarkdown } : f);
+      
+      const newCommit: WorkspaceCommit = {
+        id: `ws_commit_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        message: commitMessage.trim(),
+        snapshot: currentWorkspaceSnapshot,
+        parentId: wsCurrentBranch.headCommitId
+      };
+      
+      const updatedCommits = [newCommit, ...wsCommits];
+      const updatedBranches = wsBranches.map(b => 
+        b.name === wsActiveBranchName ? { ...b, headCommitId: newCommit.id } : b
+      );
+
+      onUpdateWorkspace(currentWorkspaceSnapshot, {
+        ...workspaceHistory,
+        commits: updatedCommits,
+        branches: updatedBranches,
+      });
+    }
 
     setCommitMessage('');
     setActiveTab('HISTORY');
   };
 
   const handleCreateBranch = () => {
-    if (!newBranchName.trim() || branches.some(b => b.name === newBranchName.trim())) return;
+    if (!newBranchName.trim() || activeBranches.some(b => b.name === newBranchName.trim())) return;
     
-    const newBranch: StixBranch = {
-      name: newBranchName.trim(),
-      headCommitId: currentBranch.headCommitId
-    };
-
-    onUpdateFile({
-      ...activeFile,
-      branches: [...branches, newBranch],
-      activeBranch: newBranch.name
-    });
+    if (scope === 'FILE') {
+      const newBranch: StixBranch = {
+        name: newBranchName.trim(),
+        headCommitId: fileCurrentBranch.headCommitId
+      };
+      onUpdateFile({
+        ...activeFile,
+        branches: [...fileBranches, newBranch],
+        activeBranch: newBranch.name
+      });
+    } else {
+      const newBranch: WorkspaceBranch = {
+        name: newBranchName.trim(),
+        headCommitId: wsCurrentBranch.headCommitId
+      };
+      onUpdateWorkspace(files, {
+        ...workspaceHistory,
+        branches: [...wsBranches, newBranch],
+        activeBranch: newBranch.name
+      });
+    }
     
     setNewBranchName('');
   };
@@ -79,44 +138,69 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
   const handleCheckoutBranch = (branchName: string) => {
     if (branchName === activeBranchName) return;
 
-    const targetBranch = branches.find(b => b.name === branchName);
-    if (!targetBranch) return;
+    if (scope === 'FILE') {
+      const targetBranch = fileBranches.find(b => b.name === branchName);
+      if (!targetBranch) return;
 
-    let checkoutContent = '';
-    if (targetBranch.headCommitId) {
-      const targetCommit = commits.find(c => c.id === targetBranch.headCommitId);
-      if (targetCommit) checkoutContent = targetCommit.content;
+      let checkoutContent = '';
+      if (targetBranch.headCommitId) {
+        const targetCommit = fileCommits.find(c => c.id === targetBranch.headCommitId);
+        if (targetCommit) checkoutContent = targetCommit.content;
+      }
+
+      onUpdateMarkdown(checkoutContent);
+      onUpdateFile({
+        ...activeFile,
+        content: checkoutContent,
+        activeBranch: branchName
+      });
+    } else {
+      const targetBranch = wsBranches.find(b => b.name === branchName);
+      if (!targetBranch) return;
+
+      let checkoutSnapshot = files;
+      if (targetBranch.headCommitId) {
+        const targetCommit = wsCommits.find(c => c.id === targetBranch.headCommitId);
+        if (targetCommit) checkoutSnapshot = targetCommit.snapshot;
+      }
+
+      onUpdateWorkspace(checkoutSnapshot, {
+        ...workspaceHistory,
+        activeBranch: branchName
+      });
     }
-
-    onUpdateMarkdown(checkoutContent);
-    onUpdateFile({
-      ...activeFile,
-      content: checkoutContent,
-      activeBranch: branchName
-    });
   };
 
   const handleRestore = (commitId: string) => {
-    const targetCommit = commits.find(c => c.id === commitId);
-    if (!targetCommit) return;
+    if (scope === 'FILE') {
+      const targetCommit = fileCommits.find(c => c.id === commitId);
+      if (!targetCommit) return;
 
-    if (confirm(`Are you sure you want to restore your working tree to "${targetCommit.message}"? Uncommitted changes will be lost.`)) {
-      onUpdateMarkdown(targetCommit.content);
-      onUpdateFile({
-        ...activeFile,
-        content: targetCommit.content
-      });
-      onClose();
+      if (confirm(`Are you sure you want to restore "${activeFile.title}" to "${targetCommit.message}"?`)) {
+        onUpdateMarkdown(targetCommit.content);
+        onUpdateFile({
+          ...activeFile,
+          content: targetCommit.content
+        });
+        onClose();
+      }
+    } else {
+      const targetCommit = wsCommits.find(c => c.id === commitId);
+      if (!targetCommit) return;
+
+      if (confirm(`Are you sure you want to restore the ENTIRE WORKSPACE to "${targetCommit.message}"?`)) {
+        onUpdateWorkspace(targetCommit.snapshot, workspaceHistory);
+        onClose();
+      }
     }
   };
 
-  // Traverses history graph for the active branch
   const getBranchHistory = () => {
-    const branchCommits: StixCommit[] = [];
+    const branchCommits: any[] = [];
     let currentId = currentBranch.headCommitId;
     
     while (currentId) {
-      const commit = commits.find(c => c.id === currentId);
+      const commit = activeCommits.find(c => c.id === currentId);
       if (commit) {
         branchCommits.push(commit);
         currentId = commit.parentId;
@@ -127,10 +211,25 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
     return branchCommits;
   };
 
-  const renderDiff = (commit: StixCommit) => {
-    const parentCommit = commit.parentId ? commits.find(c => c.id === commit.parentId) : null;
-    const oldStr = parentCommit ? parentCommit.content : '';
-    const newStr = commit.content;
+  const generateWorkspaceText = (snapshot: StixFile[]) => {
+    return snapshot.slice().sort((a,b) => a.title.localeCompare(b.title))
+      .map(f => `--- ${f.title} ---\n${f.content}`)
+      .join('\n\n');
+  };
+
+  const renderDiff = (commit: any) => {
+    const parentCommit = commit.parentId ? activeCommits.find(c => c.id === commit.parentId) : null;
+    
+    let oldStr = '';
+    let newStr = '';
+
+    if (scope === 'FILE') {
+      oldStr = parentCommit ? (parentCommit as any).content : '';
+      newStr = commit.content;
+    } else {
+      oldStr = parentCommit ? generateWorkspaceText((parentCommit as any).snapshot) : '';
+      newStr = generateWorkspaceText(commit.snapshot);
+    }
     
     const diffs = diff.diffLines(oldStr, newStr);
 
@@ -139,7 +238,6 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
         {diffs.map((part, idx) => {
           const colorClass = part.added ? 'text-green-400 bg-green-400/10' : part.removed ? 'text-red-400 bg-red-400/10' : 'text-neutral-500';
           const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
-          // Clean up string trailing newlines so it renders nicely block-by-block
           const text = part.value.replace(/\n$/, '');
           return text.split('\n').map((line, lIdx) => (
             <div key={`${idx}-${lIdx}`} className={`px-2 py-0.5 ${colorClass}`}>
@@ -155,20 +253,43 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-3xl h-[80vh] flex flex-col bg-surface-container border border-neutral-800 rounded-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-3xl h-[85vh] flex flex-col bg-surface-container border border-neutral-800 rounded-sm shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800 bg-surface-container-highest shrink-0">
           <div className="flex items-center gap-3">
             <span className="material-symbols-outlined text-[20px]" style={{ color: 'var(--color-primary-fixed)' }}>account_tree</span>
-            <h2 className="font-headline-md text-on-surface uppercase tracking-widest text-sm">Version Control</h2>
-            <span className="px-2 py-0.5 rounded-sm bg-neutral-800 text-neutral-400 font-mono text-[10px] ml-4">
-              ACTIVE: {activeBranchName}
-            </span>
+            <div className="flex flex-col">
+              <h2 className="font-headline-md text-on-surface uppercase tracking-widest text-sm flex items-center gap-2">
+                Version Control
+                <span className="px-2 py-0.5 rounded-sm bg-neutral-800 text-neutral-400 font-mono text-[10px] ml-2 tracking-widest border border-neutral-700">
+                  {scope === 'FILE' ? `FILE: "${activeFile.title || 'Untitled'}"` : 'ENTIRE WORKSPACE'}
+                </span>
+              </h2>
+            </div>
           </div>
-          <button onClick={onClose} className="text-neutral-500 hover:text-on-surface p-1 rounded-sm transition-colors">
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
+          <div className="flex items-center gap-4">
+            
+            {/* Scope Toggle */}
+            <div className="flex bg-neutral-900 border border-neutral-800 rounded-sm overflow-hidden p-0.5">
+              <button 
+                onClick={() => { setScope('FILE'); setActiveTab('COMMIT'); setViewingDiffFor(null); }}
+                className={`px-3 py-1 text-[10px] uppercase font-bold tracking-widest transition-colors rounded-sm ${scope === 'FILE' ? 'bg-primary-fixed text-on-primary-fixed' : 'text-neutral-500 hover:text-on-surface'}`}
+              >
+                📄 File
+              </button>
+              <button 
+                onClick={() => { setScope('WORKSPACE'); setActiveTab('COMMIT'); setViewingDiffFor(null); }}
+                className={`px-3 py-1 text-[10px] uppercase font-bold tracking-widest transition-colors rounded-sm ${scope === 'WORKSPACE' ? 'bg-primary-fixed text-on-primary-fixed' : 'text-neutral-500 hover:text-on-surface'}`}
+              >
+                📚 Workspace
+              </button>
+            </div>
+
+            <button onClick={onClose} className="text-neutral-500 hover:text-on-surface p-1 rounded-sm transition-colors border border-transparent hover:border-neutral-700">
+              <span className="material-symbols-outlined text-[20px]">close</span>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -190,6 +311,12 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
           
           {activeTab === 'COMMIT' && (
             <div className="flex flex-col gap-6 max-w-xl mx-auto mt-8">
+              <div className="bg-surface-container-highest p-4 border border-neutral-800 rounded-sm mb-4">
+                <p className="text-on-surface-variant font-code-md text-sm text-center">
+                  You are snapshotting the {scope === 'FILE' ? <strong className="text-primary-fixed">Current File</strong> : <strong className="text-primary-fixed">Entire Workspace</strong>} onto branch <strong className="font-mono bg-neutral-950 px-1">{activeBranchName}</strong>.
+                </p>
+              </div>
+
               <div>
                 <label className="block font-label-sm text-[10px] text-primary-fixed uppercase tracking-widest mb-2">Commit Message</label>
                 <input
@@ -207,7 +334,7 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
                 className="w-full py-3 rounded-sm font-label-sm text-[11px] font-bold uppercase tracking-widest transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                 style={{ backgroundColor: 'var(--color-primary-fixed)', color: 'var(--color-on-primary-fixed)' }}
               >
-                Snapshot Current State
+                Snapshot State
               </button>
             </div>
           )}
@@ -227,8 +354,8 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
                         <div className="flex items-center gap-3 text-neutral-500 font-mono text-[10px]">
                           <span>{new Date(commit.timestamp).toLocaleString()}</span>
                           <span>•</span>
-                          <span>{commit.id.substring(7, 15)}</span>
-                          {idx === 0 && <span className="text-primary-fixed bg-primary-fixed/10 px-1.5 rounded-sm">HEAD</span>}
+                          <span>{commit.id.substring(commit.id.lastIndexOf('_') + 1, commit.id.lastIndexOf('_') + 9)}</span>
+                          {idx === 0 && <span className="text-primary-fixed bg-primary-fixed/10 px-1.5 rounded-sm border border-primary-fixed/20">HEAD</span>}
                         </div>
                       </div>
                       
@@ -241,7 +368,7 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
                         </button>
                         <button
                           onClick={() => handleRestore(commit.id)}
-                          className="px-3 py-1.5 font-label-sm text-[9px] uppercase tracking-widest bg-neutral-800 text-on-surface hover:brightness-110 rounded-sm transition-colors"
+                          className="px-3 py-1.5 font-label-sm text-[9px] uppercase tracking-widest bg-neutral-800 text-on-surface hover:brightness-110 rounded-sm transition-colors border border-neutral-700"
                         >
                           Restore
                         </button>
@@ -261,6 +388,13 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
 
           {activeTab === 'BRANCHES' && (
             <div className="flex flex-col gap-8 max-w-xl mx-auto mt-4">
+              
+              <div className="bg-surface-container-highest p-4 border border-neutral-800 rounded-sm">
+                <p className="text-on-surface-variant font-code-md text-sm text-center">
+                  Managing branches for the {scope === 'FILE' ? <strong className="text-primary-fixed">Current File</strong> : <strong className="text-primary-fixed">Entire Workspace</strong>}.
+                </p>
+              </div>
+
               <div className="flex flex-col gap-4">
                 <label className="block font-label-sm text-[10px] text-primary-fixed uppercase tracking-widest">Create New Branch</label>
                 <div className="flex gap-2">
@@ -286,7 +420,7 @@ export function VersionControl({ activeFile, currentMarkdown, onUpdateFile, onUp
 
               <div className="flex flex-col gap-2">
                 <label className="block font-label-sm text-[10px] text-neutral-500 uppercase tracking-widest mb-2">Available Branches</label>
-                {branches.map(branch => (
+                {activeBranches.map(branch => (
                   <div key={branch.name} className={`flex items-center justify-between p-4 rounded-sm border ${branch.name === activeBranchName ? 'border-primary-fixed bg-primary-fixed/5' : 'border-neutral-800 bg-surface-container'}`}>
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined text-[16px]" style={{ color: branch.name === activeBranchName ? 'var(--color-primary-fixed)' : '#666' }}>

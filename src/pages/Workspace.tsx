@@ -50,8 +50,28 @@ export interface StixFile {
   activeBranch?: string;
 }
 
+export interface WorkspaceCommit {
+  id: string;
+  timestamp: string;
+  message: string;
+  snapshot: StixFile[];
+  parentId: string | null;
+}
+
+export interface WorkspaceBranch {
+  name: string;
+  headCommitId: string | null;
+}
+
+export interface WorkspaceHistory {
+  commits: WorkspaceCommit[];
+  branches: WorkspaceBranch[];
+  activeBranch: string;
+}
+
 const STORAGE_KEY = 'stix_files';
 const LEGACY_STORAGE_KEY = 'stix_draft';
+const WS_HISTORY_KEY = 'stix_workspace_history';
 
 const USER_MANUAL_MD = `# Welcome to the Stix Workspace
 
@@ -170,6 +190,12 @@ export function Workspace() {
   const [mobileViewMode, setMobileViewMode] = useState<'edit' | 'preview'>('edit');
   const [isVersionControlOpen, setIsVersionControlOpen] = useState(false);
 
+  const [workspaceHistory, setWorkspaceHistory] = useState<WorkspaceHistory>({
+    commits: [],
+    branches: [{ name: 'main', headCommitId: null }],
+    activeBranch: 'main'
+  });
+
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -260,6 +286,11 @@ export function Workspace() {
     const hydrateState = async () => {
       try {
         const storedFiles = await localforage.getItem<StixFile[]>(STORAGE_KEY);
+        const storedWsHistory = await localforage.getItem<WorkspaceHistory>(WS_HISTORY_KEY);
+        
+        if (storedWsHistory) {
+          setWorkspaceHistory(storedWsHistory);
+        }
 
         if (storedFiles && Array.isArray(storedFiles) && storedFiles.length > 0) {
           setFiles(storedFiles);
@@ -449,6 +480,7 @@ export function Workspace() {
         version: '1.0',
         timestamp: new Date().toISOString(),
         files: storedFiles,
+        workspaceHistory: await localforage.getItem<WorkspaceHistory>(WS_HISTORY_KEY),
         assets: assets
       };
 
@@ -528,9 +560,18 @@ export function Workspace() {
           }
         }
 
-        // 3. Rehydrate Primary Documents
+        // 3. Rehydrate Primary Documents and Workspace History
         await localforage.setItem(STORAGE_KEY, parsed.files);
         setFiles(parsed.files);
+        
+        if (parsed.workspaceHistory) {
+          await localforage.setItem(WS_HISTORY_KEY, parsed.workspaceHistory);
+          setWorkspaceHistory(parsed.workspaceHistory);
+        } else {
+          const freshHistory = { commits: [], branches: [{ name: 'main', headCommitId: null }], activeBranch: 'main' };
+          await localforage.setItem(WS_HISTORY_KEY, freshHistory);
+          setWorkspaceHistory(freshHistory as any);
+        }
 
         // 4. Update View State Immediately
         const sorted = [...parsed.files].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -1070,6 +1111,20 @@ export function Workspace() {
             });
           }}
           onUpdateMarkdown={setMarkdown}
+          
+          files={files}
+          workspaceHistory={workspaceHistory}
+          onUpdateWorkspace={(updatedFiles, updatedHistory) => {
+             setFiles(updatedFiles);
+             localforage.setItem(STORAGE_KEY, updatedFiles);
+             setWorkspaceHistory(updatedHistory);
+             localforage.setItem(WS_HISTORY_KEY, updatedHistory);
+             
+             // If active file was restored to a different state, update markdown
+             const currentActive = updatedFiles.find(f => f.id === activeFileId);
+             if (currentActive) setMarkdown(currentActive.content);
+          }}
+          
           onClose={() => setIsVersionControlOpen(false)}
         />
       )}
