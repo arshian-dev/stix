@@ -12,6 +12,9 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-bash';
 import 'prismjs/components/prism-markdown';
 import localforage from 'localforage';
+import Fuse from 'fuse.js';
+import CryptoJS from 'crypto-js';
+import { VersionControl } from '../components/VersionControl';
 
 // 1. Configure localForage Namespace
 localforage.config({
@@ -24,11 +27,27 @@ const mediaStore = localforage.createInstance({
   storeName: 'media_store'
 });
 
+export interface StixCommit {
+  id: string;
+  timestamp: string;
+  message: string;
+  content: string;
+  parentId: string | null;
+}
+
+export interface StixBranch {
+  name: string;
+  headCommitId: string | null;
+}
+
 export interface StixFile {
   id: string;
   title: string;
   content: string;
   updatedAt: string;
+  commits?: StixCommit[];
+  branches?: StixBranch[];
+  activeBranch?: string;
 }
 
 const STORAGE_KEY = 'stix_files';
@@ -149,6 +168,60 @@ export function Workspace() {
   const [markdown, setMarkdown] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [mobileViewMode, setMobileViewMode] = useState<'edit' | 'preview'>('edit');
+  const [isVersionControlOpen, setIsVersionControlOpen] = useState(false);
+
+  // Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Fuse.js Indexing
+  const searchIndex = useMemo(() => {
+    const processedFiles = (Array.isArray(files) ? files : []).map(f => {
+      const tagMatches = (f.content || '').match(/#[a-zA-Z0-9_-]+/g) || [];
+      const tags = [...new Set(tagMatches)].map(t => t.substring(1));
+      return { ...f, tags };
+    });
+    
+    return new Fuse(processedFiles, {
+      keys: [
+        { name: 'tags', weight: 2 },
+        { name: 'title', weight: 1.5 },
+        { name: 'content', weight: 1 }
+      ],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeMatches: true
+    });
+  }, [files]);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return searchIndex.search(searchQuery).slice(0, 10);
+  }, [searchQuery, searchIndex]);
+
+  // Keyboard Shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchOpen]);
+  
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    } else if (!isSearchOpen) {
+      setSearchQuery('');
+    }
+  }, [isSearchOpen]);
 
   // Theme State
   const [themeIdx, setThemeIdx] = useState<number>(() => {
@@ -381,9 +454,18 @@ export function Workspace() {
 
       const json = JSON.stringify(archive);
 
+      const password = window.prompt("Enter a strong password to encrypt this vault:");
+      if (!password) {
+        alert("Export cancelled. Password is required to encrypt the vault.");
+        return;
+      }
+
+      // AES-256 Encryption
+      const encrypted = CryptoJS.AES.encrypt(json, password).toString();
+
       // Native Browser Compression
       const encoder = new TextEncoder();
-      const uint8array = encoder.encode(json);
+      const uint8array = encoder.encode(encrypted);
       const stream = new Blob([uint8array]).stream() as unknown as ReadableStream;
       // @ts-ignore
       const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
@@ -406,11 +488,30 @@ export function Workspace() {
     if (!file) return;
 
     try {
+      const password = window.prompt("Enter your vault password to decrypt:");
+      if (!password) {
+        alert("Import cancelled. Password is required.");
+        e.target.value = '';
+        return;
+      }
+
       // Native Browser Decompression
       const stream = file.stream() as unknown as ReadableStream;
       // @ts-ignore
       const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
-      const text = await new Response(decompressedStream).text();
+      const encryptedText = await new Response(decompressedStream).text();
+
+      let text = '';
+      try {
+        const decryptedBytes = CryptoJS.AES.decrypt(encryptedText, password);
+        text = decryptedBytes.toString(CryptoJS.enc.Utf8);
+        if (!text) throw new Error("Malformed UTF-8");
+      } catch (err) {
+        alert("Incorrect password or corrupted vault.");
+        e.target.value = '';
+        return;
+      }
+
       const parsed = JSON.parse(text);
 
       // Validate Cloudless Vault Schema
@@ -696,7 +797,7 @@ export function Workspace() {
         <div
           className={`bg-neutral-950 border-r border-neutral-800 flex flex-col transition-all duration-300 shrink-0 overflow-hidden absolute md:relative z-40 h-full ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-0 md:translate-x-0 border-r-0'}`}
         >
-          <div className="p-4 border-b border-neutral-800">
+          <div className="p-4 border-b border-neutral-800 flex flex-col gap-2">
             <button
               onClick={handleNewFile}
               className="w-full flex items-center justify-center gap-2 font-label-sm text-[10px] uppercase tracking-widest px-4 py-2 font-bold hover:brightness-110 active:scale-95 transition-all rounded-sm"
@@ -704,6 +805,20 @@ export function Workspace() {
             >
               <span className="material-symbols-outlined text-[14px]">add</span>
               NEW FILE
+            </button>
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="w-full flex items-center justify-center gap-2 font-label-sm text-[10px] uppercase tracking-widest px-4 py-2 text-secondary border border-neutral-800 hover:text-on-surface hover:bg-neutral-800 transition-all rounded-sm"
+            >
+              <span className="material-symbols-outlined text-[14px]">search</span>
+              SEARCH [⌘K]
+            </button>
+            <button
+              onClick={() => setIsVersionControlOpen(true)}
+              className="w-full flex items-center justify-center gap-2 font-label-sm text-[10px] uppercase tracking-widest px-4 py-2 text-secondary border border-neutral-800 hover:text-on-surface hover:bg-neutral-800 transition-all rounded-sm"
+            >
+              <span className="material-symbols-outlined text-[14px]">history</span>
+              VERSION HISTORY
             </button>
           </div>
 
@@ -867,6 +982,97 @@ export function Workspace() {
           <span style={{ color: 'var(--color-primary-fixed-dim)' }}>~{telemetry.readTime} MIN</span>
         </div>
       </footer>
+
+      {/* SEARCH MODAL OVERLAY */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[20vh] px-4 bg-black/60 backdrop-blur-sm">
+          <div 
+            className="w-full max-w-2xl bg-surface-container border border-neutral-800 rounded-sm shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-200"
+          >
+            <div className="flex items-center px-4 py-3 border-b border-neutral-800 bg-surface-container-highest">
+              <span className="material-symbols-outlined text-neutral-500 mr-3">search</span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search workspace..."
+                className="flex-1 bg-transparent border-none outline-none text-on-surface font-code-md text-sm placeholder:text-neutral-600 focus:ring-0"
+              />
+              <button 
+                onClick={() => setIsSearchOpen(false)}
+                className="text-neutral-500 hover:text-on-surface p-1 rounded-sm"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            
+            <div className="max-h-[60vh] overflow-y-auto">
+              {searchQuery.trim() === '' ? (
+                <div className="p-8 text-center text-neutral-600 font-label-sm text-[10px] uppercase tracking-widest">
+                  Type to search files and #tags
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-8 text-center text-neutral-600 font-label-sm text-[10px] uppercase tracking-widest">
+                  No results found
+                </div>
+              ) : (
+                <div className="p-2 flex flex-col gap-1">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.item.id}
+                      onClick={() => {
+                        handleSwitchFile(result.item.id);
+                        setIsSearchOpen(false);
+                      }}
+                      className="flex flex-col text-left p-3 hover:bg-neutral-800 rounded-sm transition-colors group"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-label-sm text-[12px] text-on-surface group-hover:text-primary-fixed transition-colors">
+                          {result.item.title || 'Untitled Document'}
+                        </span>
+                        <span className="font-mono text-[9px] text-neutral-600">
+                          {new Date(result.item.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      {result.item.tags && result.item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {result.item.tags.map((tag: string) => (
+                            <span key={tag} className="font-mono text-[9px] px-1.5 py-0.5 rounded-sm bg-neutral-900 text-neutral-400 border border-neutral-800">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Invisible backdrop to close when clicking outside */}
+          <div className="fixed inset-0 -z-10" onClick={() => setIsSearchOpen(false)} />
+        </div>
+      )}
+
+      {/* VERSION CONTROL MODAL */}
+      {isVersionControlOpen && activeFileId && (
+        <VersionControl
+          activeFile={(Array.isArray(files) ? files : []).find(f => f.id === activeFileId)!}
+          currentMarkdown={markdown}
+          onUpdateFile={(updatedFile) => {
+            setFiles(prev => {
+              const safePrev = Array.isArray(prev) ? prev : [];
+              const updated = safePrev.map(f => f.id === updatedFile.id ? updatedFile : f);
+              localforage.setItem(STORAGE_KEY, updated);
+              return updated;
+            });
+          }}
+          onUpdateMarkdown={setMarkdown}
+          onClose={() => setIsVersionControlOpen(false)}
+        />
+      )}
     </div>
   );
 }
