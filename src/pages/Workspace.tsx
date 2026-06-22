@@ -84,6 +84,14 @@ Stix is a premium, distraction-free Markdown environment engineered for high-per
 - **Independent Panes:** The editor and live-preview windows scroll completely independently.
 - **Deep Scroll Margin:** Both panes feature a 50vh bottom padding, allowing you to keep your active typing line perfectly centered on your monitor.
 
+## Workspace Search Engine
+Hit \`Cmd+K\` (or click **SEARCH**) to launch the fuzzy-search Command Palette. It instantly traverses all your documents, titles, and automatically indexed \`#tags\`.
+
+## Git for Notes (Version History)
+Click **VERSION HISTORY** in the sidebar to open the Version Control modal.
+- **Dual-Scope Toggle:** Manage history for just the active **File**, or switch to **Workspace** scope to snapshot all files simultaneously!
+- **Branching & Time Travel:** Safely branch your drafts, view line-by-line colored diffs of what changed, and restore past versions with a single click.
+
 ## Multimedia & Assets
 You can drag-and-drop or paste images directly into the editor. Stix intercepts the file, saves the binary directly to a dedicated local media store, and generates a fast local reference link. Your images never hit a remote server.
 
@@ -98,10 +106,10 @@ export function initWorkspace() {
 }
 \`\`\`
 
-## Compressed Vault Backups
+## Encrypted Vault Backups
 At the bottom of your sidebar, you will find the **Vault** controls for portable workspace snapshots.
-- **↓ BACKUP:** Gathers your text documents, intercepts your saved images, encodes them to Base64, and dynamically streams the entire payload through native GZIP compression to generate a custom .stix backup file.
-- **↑ RESTORE:** Pass a .stix file here to stream it through decompression and instantly rehydrate your entire workspace with zero layout flash.
+- **↓ BACKUP:** Choose exactly which files to export. Your payload is securely encrypted using military-grade **AES-256** before being dynamically compressed via GZIP into a portable \`.stix\` file. *(Note: Partial exports safely strip global workspace history to protect the privacy of your excluded files).*
+- **↑ RESTORE:** Upload a \`.stix\` file, provide your decryption password, and instantly rehydrate your entire workspace with zero layout flash.
 
 ## File Export
 In the top right header, you can export your active document in two formats:

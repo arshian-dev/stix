@@ -59,23 +59,23 @@ All indexing and search operations execute entirely on-device.
 
 ## Version History
 
-Every document maintains an independent revision graph inspired by distributed version control systems.
+Stix features a dual-scope version control engine allowing revision tracking at both the document and workspace levels.
 
 ### Snapshots
 
-Create named checkpoints with custom commit messages.
+Create named checkpoints with custom commit messages for either the active file or the entire workspace simultaneously.
 
 ### Branching
 
-Create alternate drafts from any historical revision without modifying the original document.
+Create alternate drafts or workspace states from any historical revision without modifying the original documents.
 
 ### Diff Viewer
 
-Visualize line-by-line changes between revisions using syntax-aware comparisons powered by the `diff` library.
+Visualize line-by-line changes between revisions using syntax-aware comparisons powered by the \`diff\` library, including concatenated multi-file diffs for workspace commits.
 
 ### Restoration
 
-Restore any previous snapshot instantly.
+Restore any previous snapshot instantly, whether reverting a single file or rehydrating an entire workspace to a past state.
 
 This enables experimentation and long-form drafting without fear of losing work.
 
@@ -89,11 +89,12 @@ Stix includes a complete client-side backup and restoration system designed for 
 
 During export:
 
-1. Documents, revision history, and media assets are collected.
-2. Binary media is serialized using the `FileReader` API.
-3. The workspace archive is encrypted using AES encryption.
-4. The encrypted archive is compressed using the browser's native `CompressionStream('gzip')` API.
-5. The resulting payload is packaged as a portable `.stix` vault.
+1. The user selectively chooses which documents to include via the Export Modal.
+2. Documents, revision history, and media assets are collected (omitting global workspace history during partial exports to ensure privacy).
+3. Binary media is serialized using the \`FileReader\` API.
+4. The workspace archive is encrypted using AES encryption.
+5. The encrypted archive is compressed using the browser's native \`CompressionStream('gzip')\` API.
+6. The resulting payload is packaged as a portable \`.stix\` vault.
 
 ### Import Pipeline
 
