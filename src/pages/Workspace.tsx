@@ -85,7 +85,7 @@ Stix is a premium, distraction-free Markdown environment engineered for high-per
 - **Deep Scroll Margin:** Both panes feature a 50vh bottom padding, allowing you to keep your active typing line perfectly centered on your monitor.
 
 ## Workspace Search Engine
-Hit \`Cmd+K\` (or click **SEARCH**) to launch the fuzzy-search Command Palette. It instantly traverses all your documents, titles, and automatically indexed \`#tags\`.
+Hit Cmd+K (or click **SEARCH**) to launch the fuzzy-search Command Palette. It instantly traverses all your documents, titles, and automatically indexed #tags.
 
 ## Git for Notes (Version History)
 Click **VERSION HISTORY** in the sidebar to open the Version Control modal.
@@ -108,8 +108,8 @@ export function initWorkspace() {
 
 ## Encrypted Vault Backups
 At the bottom of your sidebar, you will find the **Vault** controls for portable workspace snapshots.
-- **↓ BACKUP:** Choose exactly which files to export. Your payload is securely encrypted using military-grade **AES-256** before being dynamically compressed via GZIP into a portable \`.stix\` file. *(Note: Partial exports safely strip global workspace history to protect the privacy of your excluded files).*
-- **↑ RESTORE:** Upload a \`.stix\` file, provide your decryption password, and instantly rehydrate your entire workspace with zero layout flash.
+- **↓ BACKUP:** Choose exactly which files to export. Your payload is securely encrypted using **AES-256** before being dynamically compressed via GZIP into a portable .stix file. *(Note: Partial exports safely strip global workspace history to protect the privacy of your excluded files).*
+- **↑ RESTORE:** Upload a .stix file, provide your decryption password, and instantly rehydrate your entire workspace with zero layout flash.
 
 ## File Export
 In the top right header, you can export your active document in two formats:
@@ -218,7 +218,7 @@ export function Workspace() {
       const tags = [...new Set(tagMatches)].map(t => t.substring(1));
       return { ...f, tags };
     });
-    
+
     return new Fuse(processedFiles, {
       keys: [
         { name: 'tags', weight: 2 },
@@ -250,7 +250,7 @@ export function Workspace() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSearchOpen]);
-  
+
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -297,7 +297,7 @@ export function Workspace() {
       try {
         const storedFiles = await localforage.getItem<StixFile[]>(STORAGE_KEY);
         const storedWsHistory = await localforage.getItem<WorkspaceHistory>(WS_HISTORY_KEY);
-        
+
         if (storedWsHistory) {
           setWorkspaceHistory(storedWsHistory);
         }
@@ -471,7 +471,7 @@ export function Workspace() {
       }
 
       const filesToExport = storedFiles.filter(f => exportSelection.has(f.id));
-      
+
       if (filesToExport.length === 0) {
         alert("No files selected for export.");
         return;
@@ -587,7 +587,7 @@ export function Workspace() {
         // 3. Rehydrate Primary Documents and Workspace History
         await localforage.setItem(STORAGE_KEY, parsed.files);
         setFiles(parsed.files);
-        
+
         if (parsed.workspaceHistory) {
           await localforage.setItem(WS_HISTORY_KEY, parsed.workspaceHistory);
           setWorkspaceHistory(parsed.workspaceHistory);
@@ -770,16 +770,16 @@ export function Workspace() {
         </div>
 
         <div className="flex items-center flex-wrap gap-2 md:gap-6">
-          
+
           {/* Mobile View Toggle */}
           <div className="md:hidden flex items-center bg-surface-container rounded-sm border border-neutral-800 overflow-hidden shrink-0">
-            <button 
+            <button
               onClick={() => setMobileViewMode('edit')}
               className={`font-label-sm text-[10px] uppercase tracking-widest px-3 py-1.5 transition-colors ${mobileViewMode === 'edit' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
             >
               EDIT
             </button>
-            <button 
+            <button
               onClick={() => setMobileViewMode('preview')}
               className={`font-label-sm text-[10px] uppercase tracking-widest px-3 py-1.5 transition-colors ${mobileViewMode === 'preview' ? 'bg-neutral-800 text-on-surface' : 'text-neutral-500'}`}
             >
@@ -852,7 +852,7 @@ export function Workspace() {
 
         {/* Sidebar Overlay for Mobile */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="md:hidden fixed inset-0 bg-black/60 z-30 transition-opacity"
             onClick={() => setIsSidebarOpen(false)}
           />
@@ -1054,7 +1054,7 @@ export function Workspace() {
       {/* SEARCH MODAL OVERLAY */}
       {isSearchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[20vh] px-4 bg-black/60 backdrop-blur-sm">
-          <div 
+          <div
             className="w-full max-w-2xl bg-surface-container border border-neutral-800 rounded-sm shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-200"
           >
             <div className="flex items-center px-4 py-3 border-b border-neutral-800 bg-surface-container-highest">
@@ -1067,14 +1067,14 @@ export function Workspace() {
                 placeholder="Search workspace..."
                 className="flex-1 bg-transparent border-none outline-none text-on-surface font-code-md text-sm placeholder:text-neutral-600 focus:ring-0"
               />
-              <button 
+              <button
                 onClick={() => setIsSearchOpen(false)}
                 className="text-neutral-500 hover:text-on-surface p-1 rounded-sm"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
-            
+
             <div className="max-h-[60vh] overflow-y-auto">
               {searchQuery.trim() === '' ? (
                 <div className="p-8 text-center text-neutral-600 font-label-sm text-[10px] uppercase tracking-widest">
@@ -1103,7 +1103,7 @@ export function Workspace() {
                           {new Date(result.item.updatedAt).toLocaleDateString()}
                         </span>
                       </div>
-                      
+
                       {result.item.tags && result.item.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {result.item.tags.map((tag: string) => (
@@ -1137,20 +1137,20 @@ export function Workspace() {
                 <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
-            
+
             <div className="p-6">
               <p className="font-label-sm text-[11px] text-neutral-400 uppercase tracking-widest mb-4">
                 Select files to include in this backup.
               </p>
-              
+
               <div className="flex gap-2 mb-4">
-                <button 
+                <button
                   onClick={() => setExportSelection(new Set(files.map(f => f.id)))}
                   className="px-3 py-1 font-label-sm text-[9px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-on-surface rounded-sm transition-colors"
                 >
                   Select All
                 </button>
-                <button 
+                <button
                   onClick={() => setExportSelection(new Set())}
                   className="px-3 py-1 font-label-sm text-[9px] uppercase tracking-widest border border-neutral-700 text-neutral-400 hover:text-on-surface rounded-sm transition-colors"
                 >
@@ -1162,8 +1162,8 @@ export function Workspace() {
                 {files.map(file => (
                   <label key={file.id} className="flex items-center gap-3 p-2 hover:bg-surface-container rounded-sm cursor-pointer transition-colors group">
                     <div className="relative flex items-center">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={exportSelection.has(file.id)}
                         onChange={(e) => {
                           const newSet = new Set(exportSelection);
@@ -1223,20 +1223,20 @@ export function Workspace() {
             });
           }}
           onUpdateMarkdown={setMarkdown}
-          
+
           files={files}
           workspaceHistory={workspaceHistory}
           onUpdateWorkspace={(updatedFiles, updatedHistory) => {
-             setFiles(updatedFiles);
-             localforage.setItem(STORAGE_KEY, updatedFiles);
-             setWorkspaceHistory(updatedHistory);
-             localforage.setItem(WS_HISTORY_KEY, updatedHistory);
-             
-             // If active file was restored to a different state, update markdown
-             const currentActive = updatedFiles.find(f => f.id === activeFileId);
-             if (currentActive) setMarkdown(currentActive.content);
+            setFiles(updatedFiles);
+            localforage.setItem(STORAGE_KEY, updatedFiles);
+            setWorkspaceHistory(updatedHistory);
+            localforage.setItem(WS_HISTORY_KEY, updatedHistory);
+
+            // If active file was restored to a different state, update markdown
+            const currentActive = updatedFiles.find(f => f.id === activeFileId);
+            if (currentActive) setMarkdown(currentActive.content);
           }}
-          
+
           onClose={() => setIsVersionControlOpen(false)}
         />
       )}
