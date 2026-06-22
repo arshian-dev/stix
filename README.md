@@ -1,65 +1,173 @@
 # Stix Workspace
 
-**Stix** is a premium, distraction-free Markdown environment engineered for high-performance writing, absolute data privacy, and aggressive visual aesthetics. 
+**Stix** is a local-first Markdown workspace built for focused writing, offline reliability, and complete ownership of your data.
 
-Designed entirely around a **Cloudless Architecture**, Stix proves that modern web applications can deliver enterprise-grade state management, multimedia processing, and asset portability without ever relying on an external backend or database.
+Designed around a **Cloudless Architecture**, Stix demonstrates how modern browser APIs can deliver document management, media handling, version control, search, and encrypted backups without relying on external servers or databases.
 
----
-
-## Cloudless Architecture & Engineering
-
-### Zero-Latency Local Storage
-Stix utilizes `localForage` to interact directly with your browser's native `IndexedDB`. Every keystroke, title change, and file creation is instantaneously auto-saved locally. Your data mathematically cannot be breached because it never leaves your machine. 
-
-### Dual-Database Asynchronous Asset Pipeline
-To maintain sub-millisecond typing latency, Stix separates state boundaries:
-1. **Primary Store**: Manages the lightweight array of your text-based Markdown documents.
-2. **Binary Media Store**: A dedicated IndexedDB instance configured exclusively for handling binary `Blob` objects. When you drag-and-drop an image into the editor, it is intercepted, saved directly as a raw binary blob to the `mediaStore`, and seamlessly injected into your text via an asynchronous interceptor (`AsyncImage`) using local object URLs. 
-
-### 🔍 Workspace Search Engine
-Integrated with `fuse.js`, Stix features a blazing-fast, local fuzzy search engine. It intelligently parses `#tags` directly from your Markdown content for weighted tag-indexing, instantly traversing your entire workspace and content bodies via a sleek `Cmd+K` Command Palette overlay.
-
-### 🌳 Git for Notes (Version History)
-Every document in Stix maintains its own independent history graph:
-- **Snapshots**: Take discrete commits with custom messages.
-- **Branching**: Safely branch out (e.g., `draft-v2`) from any past commit without destroying the original text.
-- **Diff Viewer**: Utilizes the robust `diff` library to provide beautiful, syntax-highlighted line-by-line comparisons between commits.
-- **Time Travel**: Instantly restore your working tree to any historical snapshot.
-
-### 🔐 The `.stix` AES-256 Encrypted Vault
-Stix implements an advanced, native client-side Backup and Restore pipeline:
-- **AES-256 Encryption**: Powered by `crypto-js`, your entire workspace—including text, version history, and binary media assets—is strictly encrypted with military-grade AES-256 before ever touching the filesystem.
-- **Base64 Serialization**: During export, Stix dynamically extracts all binary blobs from your `mediaStore` and converts them into serialized Base64 strings natively via the `FileReader` API.
-- **Native GZIP Streaming**: The unified encrypted JSON archive is piped through the browser's native `CompressionStream('gzip')` API.
-- **Proprietary File Wrapper**: The heavily compressed ciphertext stream is downloaded as a custom portable `.stix` vault.
-- **Millisecond Rehydration**: Uploading a `.stix` file passes the stream through `DecompressionStream('gzip')`, prompts for your password to securely decrypt the ciphertext, completely wipes the active local databases to prevent ghosting, and instantly reconstructs the optimized browser blobs—refreshing the React layout with zero page reloads.
+All documents, media assets, search indexes, and version histories remain on-device by default.
 
 ---
 
-## Luxury User Experience
+## Cloudless Architecture
 
-- **Cyber-Neon Syntax**: Built upon `PrismJS`, Stix features a custom syntax highlighting engine that dynamically binds to 5 hot-swappable Cyber-Neon color palettes (Cyber Lime, Neon Pink, Electric Blue, Toxic Green, Laser Red).
-- **Independent Scroll Panes**: The raw editor and the live-preview markdown renderer operate completely independently, ensuring you never lose your place.
-- **Deep Scroll Margins**: Both viewports feature an aggressive `50vh` bottom padding, enabling "typewriter mode" where your active line can remain perfectly centered on your monitor at all times.
-- **Live Typography**: Instantly toggle between Mono, Sans, and Serif font families to match your creative flow.
+### Local-First Storage
+
+Stix uses `localForage` to interact directly with the browser's native `IndexedDB`.
+
+Every keystroke, title change, and workspace modification is automatically persisted locally, enabling instant saves, offline operation, and complete user ownership of data.
+
+Because storage is entirely local, Stix requires no accounts, backend services, or cloud infrastructure.
+
+### Dual-Database Asset Pipeline
+
+To maintain a responsive editing experience, Stix separates textual and binary content into independent storage layers.
+
+#### Document Store
+
+Stores Markdown documents, metadata, tags, and workspace state.
+
+#### Media Store
+
+A dedicated IndexedDB instance responsible for binary `Blob` assets.
+
+When an image is dropped into the editor:
+
+1. The file is intercepted before rendering.
+2. The raw binary data is stored as a Blob.
+3. A local object URL is generated.
+4. The document is updated asynchronously using the generated reference.
+
+This separation prevents large media assets from impacting editor performance while keeping document operations lightweight.
+
+---
+
+## Workspace Search Engine
+
+Powered by `Fuse.js`, Stix includes a fully local fuzzy-search engine capable of indexing document titles, content, and tags.
+
+Features include:
+
+* Instant workspace-wide search
+* Weighted relevance scoring
+* Automatic `#tag` extraction
+* Keyboard-first navigation
+* Command Palette (`Cmd+K` / `Ctrl+K`)
+
+All indexing and search operations execute entirely on-device.
+
+---
+
+## Version History
+
+Every document maintains an independent revision graph inspired by distributed version control systems.
+
+### Snapshots
+
+Create named checkpoints with custom commit messages.
+
+### Branching
+
+Create alternate drafts from any historical revision without modifying the original document.
+
+### Diff Viewer
+
+Visualize line-by-line changes between revisions using syntax-aware comparisons powered by the `diff` library.
+
+### Restoration
+
+Restore any previous snapshot instantly.
+
+This enables experimentation and long-form drafting without fear of losing work.
+
+---
+
+## Encrypted `.stix` Vault Format
+
+Stix includes a complete client-side backup and restoration system designed for portability and long-term archival.
+
+### Export Pipeline
+
+During export:
+
+1. Documents, revision history, and media assets are collected.
+2. Binary media is serialized using the `FileReader` API.
+3. The workspace archive is encrypted using AES encryption.
+4. The encrypted archive is compressed using the browser's native `CompressionStream('gzip')` API.
+5. The resulting payload is packaged as a portable `.stix` vault.
+
+### Import Pipeline
+
+When restoring a vault:
+
+1. The archive is decompressed using `DecompressionStream('gzip')`.
+2. The user provides the vault password.
+3. The encrypted workspace is decrypted locally.
+4. Existing local databases are cleared.
+5. Documents, revision history, and media assets are reconstructed.
+6. The application state is refreshed without requiring a page reload.
+
+The resulting vault preserves an entire workspace—including embedded media and historical revisions—in a single portable file.
+
+---
+
+## Editor Experience
+
+### Live Markdown Rendering
+
+A split-view workspace provides real-time Markdown rendering while maintaining independent scroll positions between editor and preview.
+
+### Cyber-Neon Syntax Themes
+
+Built on `PrismJS`, Stix includes five dynamically switchable syntax themes:
+
+* Cyber Lime
+* Neon Pink
+* Electric Blue
+* Toxic Green
+* Laser Red
+
+### Typography Controls
+
+Switch instantly between:
+
+* Monospace
+* Sans Serif
+* Serif
+
+to match different writing styles and workflows.
+
+### Focus-Oriented Layout
+
+Large vertical scroll margins create a typewriter-style writing experience that keeps active content comfortably centered during extended writing sessions.
+
+---
+
+## Technology Stack
+
+* React
+* Vite
+* localForage
+* IndexedDB
+* Fuse.js
+* PrismJS
+* CryptoJS
+* CompressionStream API
+* DecompressionStream API
 
 ---
 
 ## Running Stix Locally
 
-Because Stix is completely cloudless, running it requires zero environment variables, zero database credentials, and zero backend configuration.
+No environment variables, backend services, databases, or cloud configuration are required.
 
-\`\`\`bash
-# Install Dependencies
+```bash
 npm install
 
-# Run the local Vite dev server
 npm run dev
 
-# Compile for production
 npm run build
-\`\`\`
+```
 
 ---
 
-*Stix — The universe in a local variable.*
+**Stix — A local-first workspace built entirely on browser-native infrastructure.**
