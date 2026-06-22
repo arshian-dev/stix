@@ -71,7 +71,7 @@ Create alternate drafts or workspace states from any historical revision without
 
 ### Diff Viewer
 
-Visualize line-by-line changes between revisions using syntax-aware comparisons powered by the \`diff\` library, including concatenated multi-file diffs for workspace commits.
+Visualize line-by-line changes between revisions using syntax-aware comparisons powered by the `diff` library, including concatenated multi-file diffs for workspace commits.
 
 ### Restoration
 
@@ -91,10 +91,10 @@ During export:
 
 1. The user selectively chooses which documents to include via the Export Modal.
 2. Documents, revision history, and media assets are collected (omitting global workspace history during partial exports to ensure privacy).
-3. Binary media is serialized using the \`FileReader\` API.
+3. Binary media is serialized using the `FileReader` API.
 4. The workspace archive is encrypted using AES encryption.
-5. The encrypted archive is compressed using the browser's native \`CompressionStream('gzip')\` API.
-6. The resulting payload is packaged as a portable \`.stix\` vault.
+5. The encrypted archive is compressed using the browser's native `CompressionStream('gzip')` API.
+6. The resulting payload is packaged as a portable `.stix` vault.
 
 ### Import Pipeline
 
